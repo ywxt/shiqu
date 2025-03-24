@@ -4,9 +4,14 @@ use teloxide::{
     dptree::deps,
 };
 
+mod api;
 mod command;
 mod dialogue;
+mod error;
 mod functions;
+mod http;
+
+pub use error::*;
 
 #[tokio::main]
 async fn main() {

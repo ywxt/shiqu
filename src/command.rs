@@ -4,8 +4,6 @@ use teloxide::macros::BotCommands;
 #[command(rename_rule = "lowercase")]
 #[non_exhaustive]
 pub enum Command {
-    Start{
-        character_id: String,
-    },
+    Start { character_id: String },
     Help,
 }
