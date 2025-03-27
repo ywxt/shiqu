@@ -9,17 +9,19 @@ impl RequestBuilder {
         Self(http::request::Builder::new())
     }
 
+    pub fn contains_header(&self, key: impl http::header::AsHeaderName) -> bool {
+        self.0
+            .headers_ref()
+            .is_some_and(|headers| headers.contains_key(key))
+    }
+
     pub fn json<T: Serialize + ?Sized>(
         mut self,
         json: &T,
     ) -> crate::Result<http::Request<reqwest::Body>> {
         match serde_json::to_vec(json) {
             Ok(body) => {
-                if self
-                    .0
-                    .headers_ref()
-                    .is_none_or(|headers| !headers.contains_key(http::header::CONTENT_TYPE))
-                {
+                if !self.contains_header(http::header::CONTENT_TYPE) {
                     self.0 = self.0.header(
                         http::header::CONTENT_TYPE,
                         http::header::HeaderValue::from_static("application/json"),
@@ -105,5 +107,11 @@ impl RequestBuilder {
 
     pub fn body<T>(self, body: T) -> Result<http::Request<T>, crate::Error> {
         Ok(self.0.body(body)?)
+    }
+}
+
+impl Default for RequestBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

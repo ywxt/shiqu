@@ -1,19 +1,16 @@
 use teloxide::{
-    dispatching::{
-        DpHandlerDescription,
-        dialogue::{self, InMemStorage},
-    },
-    dptree::{Handler, case},
+    dispatching::{DpHandlerDescription, dialogue::InMemStorage},
     prelude::*,
     types::Me,
 };
 
-use crate::{command::Command, functions::send_characters_chooser};
+use crate::functions::send_characters_chooser;
 
 #[derive(Debug, Clone, Default)]
 pub enum DialogueState {
     #[default]
     Start,
+    ChooseCharacter,
     Interaction {
         session_id: String,
     },
@@ -21,31 +18,18 @@ pub enum DialogueState {
 
 pub type Dialogue = teloxide::prelude::Dialogue<DialogueState, InMemStorage<DialogueState>>;
 pub type DialogueHandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+pub type DialogueHandler =
+    Handler<'static, DependencyMap, DialogueHandlerResult, DpHandlerDescription>;
 
-pub fn dialogue_handler()
--> Handler<'static, DependencyMap, DialogueHandlerResult, DpHandlerDescription> {
-    dialogue::enter::<Update, InMemStorage<DialogueState>, DialogueState, _>()
-        .branch(
-            Update::filter_message()
-                .filter_command::<Command>()
-                .branch(case![Command::Start { character_id }].endpoint(start)),
-        )
-        .branch(
-            Update::filter_message()
-                .branch(case![DialogueState::Interaction { session_id }].endpoint(interact)),
-        )
-}
-
-async fn start(
+pub async fn start_chat(
     bot: Bot,
     dialogue: Dialogue,
     msg: Message,
-    character_id: String, // Available from `case![StartCommand::Start(start)]`
-    me: Me,
+    character_id: String,
 ) -> DialogueHandlerResult {
     if character_id.is_empty() {
-        send_characters_chooser(bot, msg, me).await?;
-        dialogue.exit().await?;
+        send_characters_chooser(bot, msg).await?;
+        dialogue.update(DialogueState::ChooseCharacter).await?;
     } else {
         dialogue
             .update(DialogueState::Interaction {
@@ -56,12 +40,23 @@ async fn start(
     Ok(())
 }
 
-async fn interact(
+pub async fn interact(
+    bot: Bot,
+    dialogue: Dialogue,
+    msg: Message,
+    session_id: String, // Available from `case![DialogueState::Interaction{session_id}]`
+    me: Me,
+) -> DialogueHandlerResult {
+    bot.send_message(msg.chat.id, msg.text().unwrap_or_default())
+        .await?;
+    Ok(())
+}
+
+pub async fn choose_character(
     _bot: Bot,
     _dialogue: Dialogue,
-    _msg: Message,
-    _session_id: String, // Available from `case![DialogueState::Interaction{session_id}]`
+    _query: CallbackQuery,
     _me: Me,
 ) -> DialogueHandlerResult {
-    unimplemented!("interact")
+    unimplemented!("choose_character")
 }
